@@ -16,6 +16,8 @@ const part1 = (nums: number[]): number => {
 
 /**
  * Find the THREE entries that sum to 2020 and return their product.
+ * This could be optimized to at least O(n^2) by using a hash table to store
+ * previously computed sums, but it doesn't matter for inputs this small
  */
 const part2 = (nums: number[]): number => {
   for (let i = 0; i < nums.length; ++i) {
@@ -26,7 +28,7 @@ const part2 = (nums: number[]): number => {
       }
     }
   }
-  throw new Error("No two of the numbers sum to 2020");
+  throw new Error("No three of the numbers sum to 2020");
 };
 
 (async () => {
