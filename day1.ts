@@ -15,8 +15,7 @@ const part1 = (nums: number[]): number => {
 };
 
 /**
- * Find the THREE entries that sum to 2020 and then return the product of those
- * two numbers.
+ * Find the THREE entries that sum to 2020 and return their product.
  */
 const part2 = (nums: number[]): number => {
   for (let i = 0; i < nums.length; ++i) {
