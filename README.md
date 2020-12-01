@@ -7,5 +7,5 @@ To run a solution script, install dependencies first with `npm install`, then
 do this:
 
 ```
-$ npm run start -- day1.ts
+$ npm start -- day1.ts
 ```
