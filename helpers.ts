@@ -1,6 +1,9 @@
 import fs from "fs";
 const fsPromises = fs.promises;
 
+/**
+ * Reads in a file and returns each non-empty line as a string.
+ */
 export const linesAsStrings = async (filename: string): Promise<string[]> => {
   return (await fsPromises.readFile(filename))
     .toString()

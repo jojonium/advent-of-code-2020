@@ -45,7 +45,7 @@ const readLine = (line: string): LineData => {
  * rules on that line: the password policy indicates the lowest and highest
  * number of times a given letter must appear for the password to be valid.
  */
-export const passwordCheckSled = (lines: string[]): number => {
+const passwordCheckSled = (lines: string[]): number => {
   let valid = 0;
   for (const line of lines) {
     const data = readLine(line);
@@ -60,7 +60,7 @@ export const passwordCheckSled = (lines: string[]): number => {
  * rules on that line: exactly one of the one-indexed positions at the start of
  * the line must be the given letter for the password to be valid.
  */
-export const passwordCheckToboggan = (lines: string[]): number => {
+const passwordCheckToboggan = (lines: string[]): number => {
   let valid = 0;
   for (const line of lines) {
     const data = readLine(line);
