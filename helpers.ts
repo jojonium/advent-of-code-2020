@@ -18,3 +18,9 @@ export const linesAsStrings = async (filename: string): Promise<string[]> => {
 export const linesAsNumbers = async (filename: string): Promise<number[]> => {
   return (await linesAsStrings(filename)).map((s) => +s);
 };
+
+/**
+ * Returns a file's contents as one big string.
+ */
+export const fileToString = async (filename: string): Promise<string> =>
+  (await fsPromises.readFile(filename)).toString();
