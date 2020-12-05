@@ -43,18 +43,16 @@ const binarySearch = (
  */
 const binarySearchFaster = (spec: string): number =>
   parseInt(
-    spec
-      .substr(0, 7)
-      .replace(/F/g, "0")
-      .replace(/B/g, "1"),
+    spec.substr(0, 7).replace(/[FB]/g, (c) => {
+      return { F: "0", B: "1" }[c as "F" | "B"];
+    }),
     2
   ) *
     8 +
   parseInt(
-    spec
-      .substr(7, 3)
-      .replace(/L/g, "0")
-      .replace(/R/g, "1"),
+    spec.substr(7).replace(/[LR]/g, (c) => {
+      return { L: "0", R: "1" }[c as "L" | "R"];
+    }),
     2
   );
 
@@ -74,7 +72,7 @@ const findMySeat = (seats: number[]): number => {
 };
 
 (async () => {
-  const input = await linesAsStrings(path.join(".", "inputs", "day5.txt"));
+  const input = await linesAsStrings(path.join(".", "inputs", "day05.txt"));
   const seats = input.map((line) => binarySearchFaster(line));
   console.log(`Part 1: ${Math.max(...seats)}`);
   console.log(`Part 2: ${findMySeat(seats)}`);
