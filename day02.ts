@@ -76,7 +76,7 @@ const passwordCheckToboggan = (lines: string[]): number => {
 };
 
 (async () => {
-  const input = await linesAsStrings(path.join(".", "inputs", "day2.txt"));
+  const input = await linesAsStrings(path.join(".", "inputs", "day02.txt"));
   console.log(`Part 1: ${passwordCheckSled(input)}`);
   console.log(`Part 2: ${passwordCheckToboggan(input)}`);
 })();

@@ -32,7 +32,7 @@ const part2 = (nums: number[]): number => {
 };
 
 (async () => {
-  const input = await linesAsNumbers(path.join(".", "inputs", "day1.txt"));
+  const input = await linesAsNumbers(path.join(".", "inputs", "day01.txt"));
   console.log(`Part 1: ${part1(input)}`);
   console.log(`Part 2: ${part2(input)}`);
 })();

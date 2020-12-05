@@ -38,7 +38,7 @@ const linesToMap = (lines: string[]): number[][] =>
   );
 
 (async () => {
-  const input = await linesAsStrings(path.join(".", "inputs", "day3.txt"));
+  const input = await linesAsStrings(path.join(".", "inputs", "day03.txt"));
   const map = linesToMap(input);
   console.log(`Part 1: ${tobogganRoute(map)}`);
   const part2 =

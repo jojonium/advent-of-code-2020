@@ -141,7 +141,7 @@ const rules: {
 
 (async () => {
   const passports = toPassports(
-    await fileToString(path.join(".", "inputs", "day4.txt"))
+    await fileToString(path.join(".", "inputs", "day04.txt"))
   );
   console.log(`Part 1: ${checkPassports(passports)}`);
   console.log(`Part 2: ${checkPassportsStrict(passports)}`);
