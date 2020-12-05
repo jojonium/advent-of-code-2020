@@ -6,7 +6,7 @@ import path from "path";
  * returns the seat ID.
  * @param spec remaining instructions
  */
-const binarySearchRows = (
+const binarySearch = (
   spec: string,
   lowerRow = 0,
   upperRow = 127,
@@ -33,14 +33,30 @@ const binarySearchRows = (
     else if (next === "R") lowerCol = midPoint + 1;
     else throw new Error(`Got illegal character '${next}' in spec '${spec}'`);
   }
-  return binarySearchRows(
-    spec.substr(1),
-    lowerRow,
-    upperRow,
-    lowerCol,
-    upperCol
-  );
+  return binarySearch(spec.substr(1), lowerRow, upperRow, lowerCol, upperCol);
 };
+
+/**
+ * This approach finds the same result as the recusive function above, but it
+ * is a bit smarter and realizes that the binary search specification is the
+ * same way numbers are expressed in binary.
+ */
+const binarySearchFaster = (spec: string): number =>
+  parseInt(
+    spec
+      .substr(0, 7)
+      .replace(/F/g, "0")
+      .replace(/B/g, "1"),
+    2
+  ) *
+    8 +
+  parseInt(
+    spec
+      .substr(7, 3)
+      .replace(/L/g, "0")
+      .replace(/R/g, "1"),
+    2
+  );
 
 /**
  * Finds the missing number in a list of seat IDs. We don't know the list's min
@@ -59,7 +75,7 @@ const findMySeat = (seats: number[]): number => {
 
 (async () => {
   const input = await linesAsStrings(path.join(".", "inputs", "day5.txt"));
-  const seats = input.map((line) => binarySearchRows(line));
+  const seats = input.map((line) => binarySearchFaster(line));
   console.log(`Part 1: ${Math.max(...seats)}`);
   console.log(`Part 2: ${findMySeat(seats)}`);
 })();
