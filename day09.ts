@@ -5,9 +5,9 @@ import path from "path";
  * Checks whether any two of the last few numbers sum to the current number.
  */
 const check = (current: number, lastFew: Array<number>): boolean => {
-  for (const x of lastFew) {
-    for (const y of lastFew) {
-      if (x + y === current) return true;
+  for (let i = 0; i < lastFew.length; ++i) {
+    for (let j = i + 1; j < lastFew.length; ++j) {
+      if (lastFew[i] + lastFew[j] === current) return true;
     }
   }
   return false;
