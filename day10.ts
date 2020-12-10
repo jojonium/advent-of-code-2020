@@ -6,7 +6,7 @@ import path from "path";
  * calculates the distribution of 1, 2, and 3-jolt jumps used to get there.
  * Big brain functional version.
  */
-const distributions = (adapters: Array<number>): number[] =>
+const distributions = (adapters: Array<number>): Array<number> =>
   adapters
     .sort((a, b) => a - b)
     .reduce(
@@ -26,8 +26,7 @@ const distributions = (adapters: Array<number>): number[] =>
  * Small brain procedural version.
  */
 const combinations = (adapters: Array<number>): number => {
-  adapters = adapters.sort((a, b) => a - b);
-  const target = adapters[adapters.length - 1];
+  const target = Math.max(...adapters);
   const cache = new Array<number>(target + 1).fill(0);
   cache[0] = 1; // choose none of the adapters to reach joltage 0
   for (const adapter of adapters) {
@@ -35,8 +34,20 @@ const combinations = (adapters: Array<number>): number => {
       cache[adapter] += cache[adapter - i];
     }
   }
-
   return cache[target];
+};
+
+/**
+ * Big brain functional version of `combinations`
+ */
+const combinationsFunctional = (adapters: Array<number>): number => {
+  const target = Math.max(...adapters);
+  return adapters.reduce((cache, adapter) => {
+    [1, 2, 3].forEach((val) => {
+      if (adapter - val >= 0) cache[adapter] += cache[adapter - val];
+    });
+    return cache;
+  }, [1].concat(new Array<number>(target).fill(0)))[target];
 };
 
 (async () => {
@@ -44,4 +55,5 @@ const combinations = (adapters: Array<number>): number => {
   const dists = distributions(input);
   console.log(`Part 1: ${dists[0] * dists[2]}`);
   console.log(`Part 2: ${combinations(input)}`);
+  console.log(`Part 2 (functional style): ${combinationsFunctional(input)}`);
 })();
