@@ -40,15 +40,15 @@ const combinations = (adapters: Array<number>): number => {
 /**
  * Big brain functional version of `combinations`
  */
-const combinationsFunctional = (adapters: Array<number>): number => {
-  const target = Math.max(...adapters);
-  return adapters.reduce((cache, adapter) => {
+const combinationsFunctional = (adapters: Array<number>): number =>
+  adapters.reduce((cache, adapter) => {
     [1, 2, 3].forEach((val) => {
       if (adapter - val >= 0) cache[adapter] += cache[adapter - val];
     });
     return cache;
-  }, [1].concat(new Array<number>(target).fill(0)))[target];
-};
+  }, [1].concat(new Array<number>(Math.max(...adapters)).fill(0)))[
+    Math.max(...adapters)
+  ];
 
 (async () => {
   const input = await linesAsNumbers(path.join(".", "inputs", "day10.txt"));
