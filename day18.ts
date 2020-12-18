@@ -98,20 +98,14 @@ const lookAheadLow = (
 const evaluate = (line: string, p2Mode = false): number => {
   let {nextVal: val, nextI: i} = lookAheadHigh(line, 0, p2Mode);
   for (; i < line.length; ++i) {
-    const char = line.charAt(i);
-    if (char === " " || char === ")") {
-      continue;
-    } else if (char === "+") {
+    if (line.charAt(i) === "+") {
       const ahead = lookAheadHigh(line, i + 1, p2Mode);
       val += ahead.nextVal;
       i = ahead.nextI;
-    } else if (char === "*") {
-      let ahead;
-      if (p2Mode) {
-        ahead = lookAheadLow(line, i + 1, p2Mode);
-      } else {
-        ahead = lookAheadHigh(line, i + 1, p2Mode);
-      }
+    } else if (line.charAt(i) === "*") {
+      const ahead = p2Mode
+        ? lookAheadLow(line, i + 1, p2Mode)
+        : lookAheadHigh(line, i + 1, p2Mode);
       val *= ahead.nextVal;
       i = ahead.nextI;
     }
