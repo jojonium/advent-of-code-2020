@@ -2,71 +2,48 @@ import { linesAsStrings } from "./helpers";
 import path from "path";
 
 abstract class Rule {
-  constructor() {}
-  abstract validate(
-    input: string,
-    otherRules: Map<number, Rule>
-  ): { valid: boolean; length: number };
-  abstract output(otherRules: Map<number, Rule>, length: number): string;
+  /**
+   * Returns a regular expression that validates this rule.
+   * @param depth the number of times we've encountered rule 11 before.
+   */
+  abstract toRegex(otherRules: Map<number, Rule>, depth: number): string;
 }
 
 class TerminalRule extends Rule {
   constructor(private template: string) {
     super();
   }
-  validate(
-    input: string,
-    _otherRules: Map<number, Rule>
-  ): { valid: boolean; length: number } {
-    return {
-      valid: input.startsWith(this.template),
-      length: 1,
-    };
-  }
-  output(): string {
+  toRegex(): string {
     return this.template;
   }
 }
-
-let asdf = 0;
 
 class SequenceRule extends Rule {
   constructor(private seq: number[]) {
     super();
   }
-  validate(
-    input: string,
-    otherRules: Map<number, Rule>
-  ): { valid: boolean; length: number } {
-    let i = 0;
-    let counter = 0;
-    while (i < input.length && counter < this.seq.length) {
-      const result = otherRules
-        .get(this.seq[counter++])
-        ?.validate(input.slice(i), otherRules);
-      if (result === undefined) throw new Error("No rule " + this.seq[counter]);
-      if (!result.valid) return result;
-      i += result.length;
-    }
-    return {
-      valid: true,
-      length: i,
-    };
-  }
-  output(otherRules: Map<number, Rule>, length: number): string {
+  toRegex(otherRules: Map<number, Rule>, depth: number): string {
+    // manually check the only two looping rules
     if (this.seq[0] === 42 && this.seq[1] === 8) {
-      return (otherRules.get(42)?.output(otherRules, length) ?? "") + "+";
+      // this is a simple repetition that can be expressed with regex
+      return (otherRules.get(42)?.toRegex(otherRules, depth) ?? "") + "+";
     } else if (this.seq[0] === 42 && this.seq[1] === 11 && this.seq[2] === 31) {
-      if (asdf++ > 10)
+      /*
+       * This one can't be expressed by regular expressions:
+       * 11: 42 31 | 42 11 31
+       * Instead we just stop expanding after seeing it more than 10 times,
+       * because we know our input lines are shorter than that.
+       */
+      depth++;
+      if (depth > 10) {
         return (
-          (otherRules.get(42)?.output(otherRules, length) ?? "") +
-          (otherRules.get(31)?.output(otherRules, length) ?? "")
+          (otherRules.get(42)?.toRegex(otherRules, depth) ?? "") +
+          (otherRules.get(31)?.toRegex(otherRules, depth) ?? "")
         );
+      }
     }
-
     return this.seq.reduce(
-      (prev, cur) =>
-        prev + otherRules.get(cur)?.output(otherRules, length + prev.length),
+      (prev, cur) => prev + otherRules.get(cur)?.toRegex(otherRules, depth),
       ""
     );
   }
@@ -76,17 +53,9 @@ class BranchRule extends Rule {
   constructor(private left: SequenceRule, private right: SequenceRule) {
     super();
   }
-  validate(
-    input: string,
-    otherRules: Map<number, Rule>
-  ): { valid: boolean; length: number } {
-    const l = this.left.validate(input, otherRules);
-    if (l.valid) return l;
-    else return this.right.validate(input, otherRules);
-  }
-  output(otherRules: Map<number, Rule>, length: number): string {
-    const lo = this.left.output(otherRules, length);
-    const ro = this.right.output(otherRules, length);
+  toRegex(otherRules: Map<number, Rule>, depth: number): string {
+    const lo = this.left.toRegex(otherRules, depth);
+    const ro = this.right.toRegex(otherRules, depth);
     if (lo === "") return ro;
     if (ro === "") return lo;
     return `(${lo}|${ro})`;
@@ -94,138 +63,71 @@ class BranchRule extends Rule {
 }
 
 /**
- * Parses text input into a map of Rule objects.
+ * Takes in input rules and returns a regular expression that validates lines
+ * according to the rules. Because of the change in part 2, the grammar is no
+ * longer regular, so regex is not a valid general solution. However, there is a
+ * limit to how long our input lines are so we can just stop expanding after a
+ * exceeding that length.
  */
-const parseRules = (lines: string[]): Map<number, Rule> => {
+const parseRegex = (lines: string[]): RegExp => {
   const rules = new Map<number, Rule>();
   for (const line of lines) {
-    const pieces = line.split(" ");
-    const index = parseInt(pieces[0].substring(0, pieces[0].length - 1));
-    if (/^"[a-z]"$/.test(pieces[1])) {
-      // terminal rule
-      rules.set(index, new TerminalRule(pieces[1].substr(1, 1)));
+    const [index, rest] = line.split(": ");
+    if (rest.charAt(0) === '"') {
+      rules.set(+index, new TerminalRule(rest.charAt(1)));
     } else {
-      let sawPipe = false;
-      const left = new Array<number>();
-      const right = new Array<number>();
-      for (const piece of pieces.slice(1)) {
-        if (piece === "|") {
-          sawPipe = true;
-        } else {
-          const num = parseInt(piece);
-          if (sawPipe) right.push(num);
-          else left.push(num);
-        }
-      }
-      if (right.length === 0) {
-        // sequence rule
-        rules.set(index, new SequenceRule(left));
-      } else {
-        // branch rule
+      const [left, right] = rest.split("|");
+      if (right === undefined) {
         rules.set(
-          index,
-          new BranchRule(new SequenceRule(left), new SequenceRule(right))
+          +index,
+          new SequenceRule(
+            left
+              .split(" ")
+              .filter((s) => s.length > 0)
+              .map((s) => parseInt(s))
+          )
+        );
+      } else {
+        rules.set(
+          +index,
+          new BranchRule(
+            new SequenceRule(
+              left
+                .split(" ")
+                .filter((s) => s.length > 0)
+                .map((s) => parseInt(s))
+            ),
+            new SequenceRule(
+              right
+                .split(" ")
+                .filter((s) => s.length > 0)
+                .map((s) => parseInt(s))
+            )
+          )
         );
       }
     }
   }
-  return rules;
-};
-
-/**
- * Validates a line of input starting with a given rule.
- */
-const validate = (
-  line: string,
-  rule: Rule,
-  otherRules: Map<number, Rule>
-): boolean => {
-  const result = rule.validate(line, otherRules);
-  return result.valid && result.length === line.length;
+  const r0 = rules.get(0);
+  if (r0 === undefined) throw new Error("No rule 0!");
+  return new RegExp(`^${r0.toRegex(rules, 0)}$`);
 };
 
 (async () => {
   let input = await linesAsStrings(path.join(".", "inputs", "day19.txt"));
-  /*
-  input = [
-    "42: 9 14 | 10 1",
-    "9: 14 27 | 1 26",
-    "10: 23 14 | 28 1",
-    '1: "a"',
-    "11: 42 31",
-    "5: 1 14 | 15 1",
-    "19: 14 1 | 14 14",
-    "12: 24 14 | 19 1",
-    "16: 15 1 | 14 14",
-    "31: 14 17 | 1 13",
-    "6: 14 14 | 1 14",
-    "2: 1 24 | 14 4",
-    "0: 8 11",
-    "13: 14 3 | 1 12",
-    "15: 1 | 14",
-    "17: 14 2 | 1 7",
-    "23: 25 1 | 22 14",
-    "28: 16 1",
-    "4: 1 1",
-    "20: 14 14 | 1 15",
-    "3: 5 14 | 16 1",
-    "27: 1 6 | 14 18",
-    '14: "b"',
-    "21: 14 1 | 1 14",
-    "25: 1 1 | 1 14",
-    "22: 14 14",
-    "8: 42",
-    "26: 14 22 | 1 20",
-    "18: 15 15",
-    "7: 14 5 | 1 21",
-    "24: 14 1",
-    "",
-    "abbbbbabbbaaaababbaabbbbabababbbabbbbbbabaaaa",
-    "bbabbbbaabaabba",
-    "babbbbaabbbbbabbbbbbaabaaabaaa",
-    "aaabbbbbbaaaabaababaabababbabaaabbababababaaa",
-    "bbbbbbbaaaabbbbaaabbabaaa",
-    "bbbababbbbaaaaaaaabbababaaababaabab",
-    "ababaaaaaabaaab",
-    "ababaaaaabbbaba",
-    "baabbaaaabbaaaababbaababb",
-    "abbbbabbbbaaaababbbbbbaaaababb",
-    "aaaaabbaabaaaaababaa",
-    "aaaabbaaaabbaaa",
-    "aaaabbaabbaaaaaaabbbabbbaaabbaabaaa",
-    "babaaabbbaaabaababbaabababaaab",
-    "aabbbbbaabbbaaaaaabbbbbababaaaaabbaaabba",
-  ];
-  */
-
   const blankLine = input.indexOf("");
-  const rules = parseRules(input.slice(0, blankLine));
-  const r0 = rules.get(0);
-  if (r0 === undefined) throw new Error("No rule 0!");
+  let regex = parseRegex(input.slice(0, blankLine));
   console.log(
     `Part 1: ${input
       .slice(blankLine + 1)
-      .reduce((prev, cur) => (validate(cur, r0, rules) ? prev + 1 : prev), 0)}`
+      .reduce((prev, cur) => (regex.test(cur) ? prev + 1 : prev), 0)}`
   );
-
-  rules.set(
-    8,
-    new BranchRule(new SequenceRule([42]), new SequenceRule([42, 8]))
+  regex = parseRegex(
+    input.slice(0, blankLine).concat(["8: 42 | 42 8", "11: 42 31 | 42 11 31"])
   );
-  rules.set(
-    11,
-    new BranchRule(new SequenceRule([42, 31]), new SequenceRule([42, 11, 31]))
-  );
-  const re = new RegExp(`^${r0.output(rules, 0)}$`);
-  console.log(re);
   console.log(
-    `Part 2: ${input.slice(blankLine + 1).reduce((prev, cur) => {
-      if (re.test(cur)) {
-        console.log(cur);
-        return prev + 1;
-      } else {
-        return prev;
-      }
-    }, 0)}`
+    `Part 2: ${input
+      .slice(blankLine + 1)
+      .reduce((prev, cur) => (regex.test(cur) ? prev + 1 : prev), 0)}`
   );
 })();
