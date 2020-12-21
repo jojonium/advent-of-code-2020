@@ -4,13 +4,11 @@ import path from "path";
 /**
  * Finds the intersection of multiple arrays.
  */
-const intersect = <T>(arrs: T[][]): Set<T> => {
-  let s = new Set(arrs[0]);
-  for (let i = 1; i < arrs.length; ++i) {
-    s = new Set(arrs[i].filter((elem) => s.has(elem)));
-  }
-  return s;
-};
+const intersect = <T>(arrs: T[][]): Set<T> =>
+  arrs.reduce(
+    (s: Set<T>, arr) => new Set(arr.filter((elem) => s.has(elem))),
+    new Set(arrs[0])
+  );
 
 (async () => {
   const input = await linesAsStrings(path.join(".", "inputs", "day21.txt"));
