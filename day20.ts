@@ -241,21 +241,75 @@ const solve = (tiles: Tile[]): Tile[][] => {
   return image as Tile[][];
 };
 
-const printImage = (image: (Tile | undefined)[][]): string => {
-  let str = '';
+const removeBorders = (image: Tile[][]): string[][] => {
+  let out = new Array<string[]>((image.length) * 8).fill([]);
+  let n = 0;
   for (let y = 0; y < image[0].length; ++y) {
-    for (let l = 0; l < 10; ++l) {
+    for (let l = 1; l < 9; ++l) {
       for (let x = 0; x < image.length; ++x) {
-        let temp = (image[x][y] === undefined)
-          ? ' '.repeat(10)
-          : image[x][y]?.contents[l].join('')
-        str += temp + ' ';
+        out[n] = out[n].concat(image[x][y]?.contents[l].slice(1, 9));
       }
-      str += '\n';
+      n++;
     }
-    str += '\n';
   }
-  return str;
+  // Transpose because I'm too lazy to fix the rows/columns above
+  return out[0].map((_, i) => out.map(x => x[i]));
+};
+
+const countMonsters = (pixels: string[][]): number => {
+  const monsterWidth = 20;
+  const monsterHeight = 3;
+  let numMonsters = 0
+  for (let x = 0; x <= pixels.length - monsterWidth; ++x) {
+    for (let y = 0; y <= pixels[x].length - monsterHeight; ++y) {
+      if (
+        pixels[x][y + 1] === "#" &&
+        pixels[x + 1][y + 2] === "#" &&
+        pixels[x + 4][y + 2] === "#" &&
+        pixels[x + 5][y + 1] === "#" &&
+        pixels[x + 6][y + 1] === "#" &&
+        pixels[x + 7][y + 2] === "#" &&
+        pixels[x + 10][y + 2] === "#" &&
+        pixels[x + 11][y + 1] === "#" &&
+        pixels[x + 12][y + 1] === "#" &&
+        pixels[x + 13][y + 2] === "#" &&
+        pixels[x + 13][y + 2] === "#" &&
+        pixels[x + 16][y + 2] === "#" &&
+        pixels[x + 17][y + 1] === "#" &&
+        pixels[x + 18][y] === "#" &&
+        pixels[x + 18][y + 1] === "#" &&
+        pixels[x + 19][y + 1] === "#"
+      ) {
+        numMonsters++;
+      }
+    }
+  }
+  return numMonsters;
+}
+
+const part2 = (pixels: string[][]): number => {
+  let monsters = countMonsters(pixels);
+  outer: for (let orientation of [
+    pixels,
+    pixels.map(l => l.reverse()),
+    pixels.reverse()
+  ]) {
+    for (let r = 0; r < 4; ++r) {
+      orientation = orientation.map((_, i) =>
+        orientation.map(x => x[i]).reverse())
+      monsters = countMonsters(orientation);
+      if (monsters != 0) break outer;
+    }
+  }
+  if (monsters === 0) {
+    throw new Error("No sea monsters found in any orientation");
+  }
+  const totalPounds = pixels.reduce((acc, sub) =>
+    acc + sub.reduce((acc, elt) =>
+      acc + (elt === '#' ? 1 : 0),
+      0),
+    0);
+  return totalPounds - monsters * 15
 }
 
 (async () => {
@@ -266,6 +320,6 @@ const printImage = (image: (Tile | undefined)[][]): string => {
   const part1 = sort(tiles).corners.reduce((acc, curr) => acc * curr.t.id, 1);
   console.log("Part 1: " + part1);
   const image = solve(tiles);
-  //console.log(image);
-  console.log(printImage(image));
+  const noBorders = removeBorders(image);
+  console.log("Part 2: " + part2(noBorders));
 })();
