@@ -1,49 +1,6 @@
 import {paragraphsAsStrings} from "./helpers";
 import path from "path";
 
-/**
- * INCOMPLETE
- */
-
-interface Sides {
-  top: string;
-  right: string;
-  bottom: string;
-  left: string;
-}
-
-const flipX = (input: Sides): Sides => {
-  return {
-    top: input.top.split('').reverse().join(''),
-    right: input.left.split('').join(''),
-    bottom: input.bottom.split('').reverse().join(''),
-    left: input.right.split('').join(''),
-  };
-};
-
-const flipY = (input: Sides): Sides => {
-  return {
-    top: input.bottom.split('').join(''),
-    right: input.right.split('').reverse().join(''),
-    bottom: input.top.split('').join(''),
-    left: input.left.split('').reverse().join(''),
-  };
-};
-
-// Clockwise
-const rotate = (input: Sides, n = 1): Sides => {
-  let t = input
-  for (let i = 0; i < n; ++i) {
-    t = {
-      top: t.left.split('').reverse().join(''),
-      right: t.top.split('').join(''),
-      bottom: t.right.split('').reverse().join(''),
-      left: t.bottom.split('').join(''),
-    };
-  }
-  return t;
-};
-
 class Tile {
   public readonly id: number;
   public top = '';
@@ -93,36 +50,53 @@ class Tile {
   }
 
   private try(
-    sides: Sides,
     above?: Tile,
     toRight?: Tile,
     below?: Tile,
     toLeft?: Tile
   ): boolean {
-    return (above === undefined || sides.top === above.bottom) &&
-      (toRight === undefined || sides.right === toRight.left) &&
-      (below === undefined || sides.bottom === below.top) &&
-      (toLeft === undefined || sides.left === toLeft.right);
+    return (above === undefined || this.top === above.bottom) &&
+      (toRight === undefined || this.right === toRight.left) &&
+      (below === undefined || this.bottom === below.top) &&
+      (toLeft === undefined || this.left === toLeft.right);
   }
 
-  public fit(above?: Tile, toRight?: Tile, below?: Tile, toLeft?: Tile): Tile | false {
-    let temp: Sides = {
-      top: this.top,
-      right: this.right,
-      bottom: this.bottom,
-      left: this.left,
-    };
+  public fit(
+    full: (Tile | undefined)[][],
+    x: number,
+    y: number
+  ): Tile | false {
+    const above = (full[x] ?? [])[y - 1];
+    const toRight = (full[x + 1] ?? [])[y];
+    const below = (full[x] ?? [])[y + 1];
+    const toLeft = (full[x - 1] ?? [])[y];
     for (let n = 0; n <= 3; ++n) {
-      let rotated = rotate(temp, n);
-      if (this.try(rotated, above, toRight, below, toLeft)) {
-        return this.rotate(n);
+      this.rotate(1);
+      // Normal
+      if (this.try(above, toRight, below, toLeft)) {
+        return this;
       }
-      if (this.try(flipX(rotated), above, toRight, below, toLeft)) {
-        return this.rotate(n).flipX();
+
+      // Flipped X
+      this.flipX();
+      if (this.try(above, toRight, below, toLeft)) {
+        return this;
       }
-      if (this.try(flipY(rotated), above, toRight, below, toLeft)) {
-        return this.rotate(n).flipY();
+
+      // Flipped Y
+      this.flipX();
+      this.flipY();
+      if (this.try(above, toRight, below, toLeft)) {
+        return this;
       }
+
+      // Flipped X and Y
+      this.flipX();
+      if (this.try(above, toRight, below, toLeft)) {
+        return this;
+      }
+      this.flipX();
+      this.flipY();
     }
     return false;
   }
@@ -174,7 +148,7 @@ const sort = (tiles: Tile[]): {
   return {corners, edges, middle}
 }
 
-const solve = (tiles: Tile[]): (Tile | undefined)[][] => {
+const solve = (tiles: Tile[]): Tile[][] => {
   const sorted = sort(tiles);
   const dimensions = Math.sqrt(tiles.length);
   const image = new Array<(Tile | undefined)[]>(dimensions);
@@ -184,92 +158,87 @@ const solve = (tiles: Tile[]): (Tile | undefined)[][] => {
   }
   // Rotate a corner piece until its unique sides are top and left
   const {t: tile, tu, ru, bu, lu} = sorted.corners.shift()!!;
-  if (bu && lu) tile.rotate(1);
-  else if (ru && bu) tile.rotate(2);
-  else if (tu && ru) tile.rotate(3);
+  let rotations = 0;
+  if (bu && lu) rotations = 1;
+  else if (ru && bu) rotations = 2;
+  else if (tu && ru) rotations = 3;
+  for (let r = 0; r < rotations; r++) {
+    tile.rotate();
+  }
   image[0][0] = tile;
+
+  const slotIn = (
+    x: number, y: number, pool: Tile[]
+  ): Tile => {
+    for (let e = pool.length - 1; e >= 0; e--) {
+      const fit = pool[e].fit(image, x, y);
+      if (fit !== false) {
+        image[x][y] = fit;
+        return fit;
+      }
+    }
+    throw new Error(`Nothing fits in ${x},${y}`);
+  }
 
   // Fill in the left edge of the puzzle
   for (let y = 1; y < dimensions - 1; y++) {
-    for (let e = sorted.edges.length - 1; e >= 0; e--) {
-      const fit = sorted.edges[e].fit(image[0][y - 1]);
-      if (fit !== false) {
-        image[0][y] = fit;
-        sorted.edges.splice(e, 1);
-        break;
-      }
-    }
+    const slot = slotIn(0, y, sorted.edges);
+    sorted.edges = sorted.edges.filter(e => e !== slot);
   }
 
   // Fill in bottom left corner
-  for (let c = sorted.corners.length - 1; c >= 0; c--) {
-    const fit = sorted.corners[c].t.fit(image[0][dimensions - 2]);
-    if (fit !== false) {
-      image[0][dimensions - 1] = fit;
-      sorted.corners.splice(c, 1);
-      break;
-    }
-  }
-
-  // Fill in the top edge of the puzzle
-  for (let x = 1; x < dimensions - 1; x++) {
-    for (let e = sorted.edges.length - 1; e >= 0; e--) {
-      const fit = sorted.edges[e].fit(undefined, undefined, undefined, image[x - 1][0]);
-      if (fit !== false) {
-        image[x][0] = fit;
-        sorted.edges.splice(e, 1);
-        break;
-      }
-    }
-  }
-
-  // Fill in top right corner
-  for (let c = sorted.corners.length - 1; c >= 0; c--) {
-    const fit = sorted.corners[c].t
-      .fit(undefined, undefined, undefined, image[dimensions - 2][0]);
-    if (fit !== false) {
-      image[dimensions - 1][0] = fit;
-      sorted.corners.splice(c, 1);
-      break;
-    }
-  }
-
-  // Fill in the right edge of the puzzle
-  for (let y = 1; y < dimensions - 1; y++) {
-    let x = dimensions - 1;
-    for (let e = sorted.edges.length - 1; e >= 0; e--) {
-      const fit = sorted.edges[e].fit(image[x][y - 1]);
-      if (fit !== false) {
-        image[x][y] = fit;
-        sorted.edges.splice(e, 1);
-        break;
-      }
-    }
-  }
-
-  // Last corner piece belongs in the bottom right
-  const fit = sorted.corners.shift()!!.t
-    .fit(image[dimensions - 1][dimensions - 2]);
-  if (fit === false) {
-    console.error("Last corner piece doesn't fit!");
-  } else {
-    image[dimensions - 1][dimensions - 1] = fit;
-  }
+  let slot = slotIn(0, dimensions - 1, sorted.corners.map(c => c.t));
+  sorted.corners = sorted.corners.filter(c => c.t !== slot);
 
   // Fill in the bottom edge of the puzzle
   for (let x = 1; x < dimensions - 1; x++) {
-    for (let e = sorted.edges.length - 1; e >= 0; e--) {
-      let y = dimensions - 1;
-      const fit = sorted.edges[e].fit(undefined, image[x + 1][y], undefined, image[x - 1][y]);
-      if (fit !== false) {
-        image[x][y] = fit;
-        sorted.edges.splice(e, 1);
-        break;
-      }
+    const slot = slotIn(x, dimensions - 1, sorted.edges);
+    sorted.edges = sorted.edges.filter(e => e !== slot);
+  }
+
+  // Fill in bottom right corner
+  slot = slotIn(dimensions - 1, dimensions - 1, sorted.corners.map(c => c.t));
+  sorted.corners = sorted.corners.filter(c => c.t !== slot);
+
+  // Fill in the right edge of the puzzle
+  for (let y = dimensions - 2; y > 0; y--) {
+    const slot = slotIn(dimensions - 1, y, sorted.edges);
+    sorted.edges = sorted.edges.filter(e => e !== slot);
+  }
+
+  // Fill in top right corner
+  slot = slotIn(dimensions - 1, 0, sorted.corners.map(c => c.t));
+  sorted.corners = sorted.corners.filter(c => c.t !== slot);
+
+  // Fill in the top edge of the puzzle
+  for (let x = dimensions - 2; x > 0; x--) {
+    const slot = slotIn(x, 0, sorted.edges);
+    sorted.edges = sorted.edges.filter(e => e !== slot);
+  }
+
+  // Fill in the center of the puzzle in a spiral
+  for (let o = 1; o < dimensions / 2; o++) {
+    for (let x = o; x < dimensions - o; x++) {
+      slot = slotIn(x, o, sorted.middle);
+      sorted.middle = sorted.middle.filter(e => e !== slot);
+    }
+    for (let y = o + 1; y < dimensions - o; y++) {
+      const x = dimensions - o - 1;
+      slot = slotIn(x, y, sorted.middle);
+      sorted.middle = sorted.middle.filter(e => e !== slot);
+    }
+    for (let x = dimensions - o - 2; x >= o; x--) {
+      const y = dimensions - o - 1;
+      slot = slotIn(x, y, sorted.middle);
+      sorted.middle = sorted.middle.filter(e => e !== slot);
+    }
+    for (let y = dimensions - o - 2; y > o; y--) {
+      slot = slotIn(o, y, sorted.middle);
+      sorted.middle = sorted.middle.filter(e => e !== slot);
     }
   }
 
-  return image;
+  return image as Tile[][];
 };
 
 const printImage = (image: (Tile | undefined)[][]): string => {
